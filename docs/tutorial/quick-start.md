@@ -34,8 +34,8 @@ The main process creates web pages by creating `BrowserWindow` instances. Each
 is also terminated.
 
 The main process manages all web pages and their corresponding renderer
-processes. Each renderer process is isolated and only cares
-about the web page running in it.
+processes. Each renderer process is isolated and only cares about the web page
+running in it.
 
 In web pages, calling native GUI related APIs is not allowed because managing
 native GUI resources in web pages is very dangerous and it is easy to leak
@@ -43,9 +43,11 @@ resources. If you want to perform GUI operations in a web page, the renderer
 process of the web page must communicate with the main process to request that
 the main process perform those operations.
 
-In Electron, we have provided the [ipc](../api/ipc-renderer.md) module for
-communication between the main process and renderer process. There is also a
-[remote](../api/remote.md) module for RPC style communication.
+In Electron, we have several ways to communicate between the main process and
+renderer processes. Like [`ipcRenderer`](../api/ipc-renderer.md) and
+[`ipcMain`](../api/ipc-main.md) modules for sending messages, and the
+[remote](../api/remote.md) module for RPC style communication. There is also
+an FAQ entry on [how to share data between web pages][share-data].
 
 ## Write your First Electron App
 
@@ -79,45 +81,58 @@ example being:
 
 ```javascript
 const electron = require('electron');
-const app = electron.app;  // Module to control application life.
-const BrowserWindow = electron.BrowserWindow;  // Module to create native browser window.
-
-// Report crashes to our server.
-electron.crashReporter.start();
+// Module to control application life.
+const {app} = electron;
+// Module to create native browser window.
+const {BrowserWindow} = electron;
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-var mainWindow = null;
+let win;
+
+function createWindow() {
+  // Create the browser window.
+  win = new BrowserWindow({width: 800, height: 600});
+
+  // and load the index.html of the app.
+  win.loadURL(`file://${__dirname}/index.html`);
+
+  // Open the DevTools.
+  win.webContents.openDevTools();
+
+  // Emitted when the window is closed.
+  win.on('closed', () => {
+    // Dereference the window object, usually you would store windows
+    // in an array if your app supports multi windows, this is the time
+    // when you should delete the corresponding element.
+    win = null;
+  });
+}
+
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
+app.on('ready', createWindow);
 
 // Quit when all windows are closed.
-app.on('window-all-closed', function() {
-  // On OS X it is common for applications and their menu bar
+app.on('window-all-closed', () => {
+  // On macOS it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
-  if (process.platform != 'darwin') {
+  if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-app.on('ready', function() {
-  // Create the browser window.
-  mainWindow = new BrowserWindow({width: 800, height: 600});
-
-  // and load the index.html of the app.
-  mainWindow.loadURL('file://' + __dirname + '/index.html');
-
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
-
-  // Emitted when the window is closed.
-  mainWindow.on('closed', function() {
-    // Dereference the window object, usually you would store windows
-    // in an array if your app supports multi windows, this is the time
-    // when you should delete the corresponding element.
-    mainWindow = null;
-  });
+app.on('activate', () => {
+  // On macOS it's common to re-create a window in the app when the
+  // dock icon is clicked and there are no other windows open.
+  if (win === null) {
+    createWindow();
+  }
 });
+
+// In this file you can include the rest of your app's specific main process
+// code. You can also put them in separate files and require them here.
 ```
 
 Finally the `index.html` is the web page you want to show:
@@ -146,8 +161,11 @@ working as expected.
 
 ### electron-prebuilt
 
-If you've installed `electron-prebuilt` globally with `npm`, then you will only need
-to run the following in your app's source directory:
+[`electron-prebuilt`](https://github.com/electron-userland/electron-prebuilt) is
+an `npm` module that contains pre-compiled versions of Electron.
+
+If you've installed it globally with `npm`, then you will only need to run the
+following in your app's source directory:
 
 ```bash
 electron .
@@ -176,14 +194,14 @@ $ .\electron\electron.exe your-app\
 $ ./electron/electron your-app/
 ```
 
-#### OS X
+#### macOS
 
 ```bash
 $ ./Electron.app/Contents/MacOS/Electron your-app/
 ```
 
 `Electron.app` here is part of the Electron's release package, you can download
-it from [here](https://github.com/atom/electron/releases).
+it from [here](https://github.com/electron/electron/releases).
 
 ### Run as a distribution
 
@@ -193,16 +211,22 @@ and then executing the packaged app.
 
 ### Try this Example
 
-Clone and run the code in this tutorial by using the [`atom/electron-quick-start`](https://github.com/atom/electron-quick-start)
+Clone and run the code in this tutorial by using the [`electron/electron-quick-start`](https://github.com/electron/electron-quick-start)
 repository.
 
 **Note**: Running this requires [Git](https://git-scm.com) and [Node.js](https://nodejs.org/en/download/) (which includes [npm](https://npmjs.org)) on your system.
 
 ```bash
 # Clone the repository
-$ git clone https://github.com/atom/electron-quick-start
+$ git clone https://github.com/electron/electron-quick-start
 # Go into the repository
 $ cd electron-quick-start
 # Install dependencies and run the app
 $ npm install && npm start
 ```
+
+For more example apps, see the
+[list of boilerplates](http://electron.atom.io/community/#boilerplates)
+created by the awesome electron community.
+
+[share-data]: ../faq.md#how-to-share-data-between-web-pages

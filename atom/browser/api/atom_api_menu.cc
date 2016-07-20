@@ -19,24 +19,16 @@ namespace atom {
 
 namespace api {
 
-Menu::Menu()
+Menu::Menu(v8::Isolate* isolate)
     : model_(new AtomMenuModel(this)),
-      parent_(NULL) {
+      parent_(nullptr) {
 }
 
 Menu::~Menu() {
 }
 
-void Menu::Destroy() {
-  model_.reset();
-}
-
-bool Menu::IsDestroyed() const {
-  return !model_;
-}
-
 void Menu::AfterInit(v8::Isolate* isolate) {
-  mate::Dictionary wrappable(isolate, GetWrapper(isolate));
+  mate::Dictionary wrappable(isolate, GetWrapper());
   mate::Dictionary delegate;
   if (!wrappable.Get("delegate", &delegate))
     return;
@@ -61,16 +53,21 @@ bool Menu::IsCommandIdVisible(int command_id) const {
   return is_visible_.Run(command_id);
 }
 
-bool Menu::GetAcceleratorForCommandId(int command_id,
-                                      ui::Accelerator* accelerator) {
+bool Menu::GetAcceleratorForCommandIdWithParams(
+    int command_id,
+    bool use_default_accelerator,
+    ui::Accelerator* accelerator) const {
   v8::Locker locker(isolate());
   v8::HandleScope handle_scope(isolate());
-  v8::Local<v8::Value> val = get_accelerator_.Run(command_id);
+  v8::Local<v8::Value> val = get_accelerator_.Run(
+      command_id, use_default_accelerator);
   return mate::ConvertFromV8(isolate(), val, accelerator);
 }
 
-void Menu::ExecuteCommand(int command_id, int event_flags) {
-  execute_command_.Run(command_id);
+void Menu::ExecuteCommand(int command_id, int flags) {
+  execute_command_.Run(
+      mate::internal::CreateEventFromFlags(isolate(), flags),
+      command_id);
 }
 
 void Menu::MenuWillShow(ui::SimpleMenuModel* source) {
@@ -159,6 +156,7 @@ bool Menu::IsVisibleAt(int index) const {
 void Menu::BuildPrototype(v8::Isolate* isolate,
                           v8::Local<v8::ObjectTemplate> prototype) {
   mate::ObjectTemplateBuilder(isolate, prototype)
+      .MakeDestroyable()
       .SetMethod("insertItem", &Menu::InsertItemAt)
       .SetMethod("insertCheckItem", &Menu::InsertCheckItemAt)
       .SetMethod("insertRadioItem", &Menu::InsertRadioItemAt)
@@ -176,8 +174,7 @@ void Menu::BuildPrototype(v8::Isolate* isolate,
       .SetMethod("isItemCheckedAt", &Menu::IsItemCheckedAt)
       .SetMethod("isEnabledAt", &Menu::IsEnabledAt)
       .SetMethod("isVisibleAt", &Menu::IsVisibleAt)
-      .SetMethod("_popup", &Menu::Popup)
-      .SetMethod("_popupAt", &Menu::PopupAt);
+      .SetMethod("popupAt", &Menu::PopupAt);
 }
 
 }  // namespace api

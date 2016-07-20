@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/command_line.h"
+#include "base/message_loop/message_loop.h"
 #include "content/public/common/content_switches.h"
 #include "gin/array_buffer.h"
 #include "gin/v8_initializer.h"
@@ -23,6 +24,14 @@ JavascriptEnvironment::JavascriptEnvironment()
       context_scope_(v8::Local<v8::Context>::New(isolate_, context_)) {
 }
 
+void JavascriptEnvironment::OnMessageLoopCreated() {
+  isolate_holder_.AddRunMicrotasksObserver();
+}
+
+void JavascriptEnvironment::OnMessageLoopDestroying() {
+  isolate_holder_.RemoveRunMicrotasksObserver();
+}
+
 bool JavascriptEnvironment::Initialize() {
   auto cmd = base::CommandLine::ForCurrentProcess();
   if (cmd->HasSwitch("debug-brk")) {
@@ -37,6 +46,7 @@ bool JavascriptEnvironment::Initialize() {
     v8::V8::SetFlagsFromString(js_flags.c_str(), js_flags.size());
 
   gin::IsolateHolder::Initialize(gin::IsolateHolder::kNonStrictMode,
+                                 gin::IsolateHolder::kStableV8Extras,
                                  gin::ArrayBufferAllocator::SharedInstance());
   return true;
 }

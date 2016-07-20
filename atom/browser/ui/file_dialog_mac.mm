@@ -34,15 +34,25 @@ void SetAllowedFileTypes(NSSavePanel* dialog, const Filters& filters) {
       [file_type_set addObject:base::mac::CFToNSCast(ext_cf.get())];
     }
   }
-  [dialog setAllowedFileTypes:[file_type_set allObjects]];
+
+  // Passing empty array to setAllowedFileTypes will cause exception.
+  NSArray* file_types = nil;
+  if ([file_type_set count])
+    file_types = [file_type_set allObjects];
+
+  [dialog setAllowedFileTypes:file_types];
 }
 
 void SetupDialog(NSSavePanel* dialog,
                  const std::string& title,
+                 const std::string& button_label,
                  const base::FilePath& default_path,
                  const Filters& filters) {
   if (!title.empty())
     [dialog setTitle:base::SysUTF8ToNSString(title)];
+
+  if (!button_label.empty())
+    [dialog setPrompt:base::SysUTF8ToNSString(button_label)];
 
   NSString* default_dir = nil;
   NSString* default_filename = nil;
@@ -76,6 +86,8 @@ void SetupDialogForProperties(NSOpenPanel* dialog, int properties) {
     [dialog setCanCreateDirectories:YES];
   if (properties & FILE_DIALOG_MULTI_SELECTIONS)
     [dialog setAllowsMultipleSelection:YES];
+  if (properties & FILE_DIALOG_SHOW_HIDDEN_FILES)
+    [dialog setShowsHiddenFiles:YES];
 }
 
 // Run modal dialog with parent window and return user's choice.
@@ -108,6 +120,7 @@ void ReadDialogPaths(NSOpenPanel* dialog, std::vector<base::FilePath>* paths) {
 
 bool ShowOpenDialog(atom::NativeWindow* parent_window,
                     const std::string& title,
+                    const std::string& button_label,
                     const base::FilePath& default_path,
                     const Filters& filters,
                     int properties,
@@ -115,7 +128,7 @@ bool ShowOpenDialog(atom::NativeWindow* parent_window,
   DCHECK(paths);
   NSOpenPanel* dialog = [NSOpenPanel openPanel];
 
-  SetupDialog(dialog, title, default_path, filters);
+  SetupDialog(dialog, title, button_label, default_path, filters);
   SetupDialogForProperties(dialog, properties);
 
   int chosen = RunModalDialog(dialog, parent_window);
@@ -128,13 +141,14 @@ bool ShowOpenDialog(atom::NativeWindow* parent_window,
 
 void ShowOpenDialog(atom::NativeWindow* parent_window,
                     const std::string& title,
+                    const std::string& button_label,
                     const base::FilePath& default_path,
                     const Filters& filters,
                     int properties,
                     const OpenDialogCallback& c) {
   NSOpenPanel* dialog = [NSOpenPanel openPanel];
 
-  SetupDialog(dialog, title, default_path, filters);
+  SetupDialog(dialog, title, button_label, default_path, filters);
   SetupDialogForProperties(dialog, properties);
 
   // Duplicate the callback object here since c is a reference and gcd would
@@ -156,13 +170,14 @@ void ShowOpenDialog(atom::NativeWindow* parent_window,
 
 bool ShowSaveDialog(atom::NativeWindow* parent_window,
                     const std::string& title,
+                    const std::string& button_label,
                     const base::FilePath& default_path,
                     const Filters& filters,
                     base::FilePath* path) {
   DCHECK(path);
   NSSavePanel* dialog = [NSSavePanel savePanel];
 
-  SetupDialog(dialog, title, default_path, filters);
+  SetupDialog(dialog, title, button_label, default_path, filters);
 
   int chosen = RunModalDialog(dialog, parent_window);
   if (chosen == NSFileHandlingPanelCancelButton || ![[dialog URL] isFileURL])
@@ -174,12 +189,13 @@ bool ShowSaveDialog(atom::NativeWindow* parent_window,
 
 void ShowSaveDialog(atom::NativeWindow* parent_window,
                     const std::string& title,
+                    const std::string& button_label,
                     const base::FilePath& default_path,
                     const Filters& filters,
                     const SaveDialogCallback& c) {
   NSSavePanel* dialog = [NSSavePanel savePanel];
 
-  SetupDialog(dialog, title, default_path, filters);
+  SetupDialog(dialog, title, button_label, default_path, filters);
 
   __block SaveDialogCallback callback = c;
 

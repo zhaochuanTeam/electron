@@ -8,27 +8,30 @@
 #include <string>
 #include <vector>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
 #include "base/compiler_specific.h"
 #include "base/observer_list.h"
 #include "base/strings/string16.h"
 #include "atom/browser/browser_observer.h"
 #include "atom/browser/window_list_observer.h"
+#include "native_mate/arguments.h"
 
 #if defined(OS_WIN)
 #include "base/files/file_path.h"
 #endif
 
 namespace base {
+class DictionaryValue;
 class FilePath;
 }
 
-namespace ui {
-class MenuModel;
+namespace gfx {
+class Image;
 }
 
 namespace atom {
 
+class AtomMenuModel;
 class LoginHandler;
 
 // This class is used for control application-wide operations.
@@ -72,7 +75,49 @@ class Browser : public WindowListObserver {
   // Set the application user model ID.
   void SetAppUserModelID(const base::string16& name);
 
+  // Remove the default protocol handler registry key
+  bool RemoveAsDefaultProtocolClient(const std::string& protocol);
+
+  // Set as default handler for a protocol.
+  bool SetAsDefaultProtocolClient(const std::string& protocol);
+
+  // Query the current state of default handler for a protocol.
+  bool IsDefaultProtocolClient(const std::string& protocol);
+
+  // Set/Get the badge count.
+  bool SetBadgeCount(int count);
+  int GetBadgeCount();
+
+  // Set/Get the login item settings of the app
+  struct LoginItemSettings {
+    bool open_at_login = false;
+    bool open_as_hidden = false;
+    bool restore_state = false;
+    bool opened_at_login = false;
+    bool opened_as_hidden = false;
+  };
+  void SetLoginItemSettings(LoginItemSettings settings);
+  LoginItemSettings GetLoginItemSettings();
+
 #if defined(OS_MACOSX)
+  // Hide the application.
+  void Hide();
+
+  // Show the application.
+  void Show();
+
+  // Creates an activity and sets it as the one currently in use.
+  void SetUserActivity(const std::string& type,
+                       const base::DictionaryValue& user_info,
+                       mate::Arguments* args);
+
+  // Returns the type name of the current user activity.
+  std::string GetCurrentActivityType();
+
+  // Resumes an activity via hand-off.
+  bool ContinueUserActivity(const std::string& type,
+                            const base::DictionaryValue& user_info);
+
   // Bounce the dock icon.
   enum BounceType {
     BOUNCE_CRITICAL = 0,
@@ -80,6 +125,9 @@ class Browser : public WindowListObserver {
   };
   int DockBounce(BounceType type);
   void DockCancelBounce(int request_id);
+
+  // Bounce the Downloads stack.
+  void DockDownloadFinished(const std::string& filePath);
 
   // Set/Get dock's badge text.
   void DockSetBadgeText(const std::string& label);
@@ -90,7 +138,10 @@ class Browser : public WindowListObserver {
   void DockShow();
 
   // Set docks' menu.
-  void DockSetMenu(ui::MenuModel* model);
+  void DockSetMenu(AtomMenuModel* model);
+
+  // Set docks' icon.
+  void DockSetIcon(const gfx::Image& image);
 #endif  // defined(OS_MACOSX)
 
 #if defined(OS_WIN)
@@ -110,7 +161,12 @@ class Browser : public WindowListObserver {
   // one from app's name.
   // The returned string managed by Browser, and should not be modified.
   PCWSTR GetAppUserModelID();
-#endif
+#endif  // defined(OS_WIN)
+
+#if defined(OS_LINUX)
+  // Whether Unity launcher is running.
+  bool IsUnityRunning();
+#endif  // defined(OS_LINUX)
 
   // Tell the application to open a file.
   bool OpenFile(const std::string& file_path);
@@ -126,8 +182,11 @@ class Browser : public WindowListObserver {
   void WillFinishLaunching();
   void DidFinishLaunching();
 
+  void OnAccessibilitySupportChanged();
+
   // Request basic auth login.
-  void RequestLogin(LoginHandler* login_handler);
+  void RequestLogin(LoginHandler* login_handler,
+                    std::unique_ptr<base::DictionaryValue> request_details);
 
   void AddObserver(BrowserObserver* obs) {
     observers_.AddObserver(obs);
@@ -164,14 +223,19 @@ class Browser : public WindowListObserver {
   // Observers of the browser.
   base::ObserverList<BrowserObserver> observers_;
 
+  // Whether `app.exit()` has been called
+  bool is_exiting_;
+
   // Whether "ready" event has been emitted.
   bool is_ready_;
 
-  // The browse is being shutdown.
+  // The browser is being shutdown.
   bool is_shutdown_;
 
   std::string version_override_;
   std::string name_override_;
+
+  int badge_count_ = 0;
 
 #if defined(OS_WIN)
   base::string16 app_user_model_id_;

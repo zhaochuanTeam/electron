@@ -12,7 +12,7 @@ __1. 应用的入口__
 
 在 Electron 中，入口是一个 JavaScript 脚本。不同于直接提供一个URL，你需要手动创建一个浏览器窗口，然后通过 API 加载 HTML 文件。你还可以监听窗口事件，决定何时让应用退出。
 
-Electron 的工作方式更像 Node.js 运行时。 Electron 的 APIs 更加底层，因此你可以它替代 [PhantomJS](http://phantomjs.org/) 做浏览器测试。
+Electron 的工作方式更像 Node.js 运行时。 Electron 的 APIs 更加底层，因此你可以用它替代 [PhantomJS](http://phantomjs.org/) 做浏览器测试。
 
 __2. 构建系统__
 
@@ -28,4 +28,4 @@ __4. 多上下文__
 
 通过使用 Node 的[多上下文](http://strongloop.com/strongblog/whats-new-node-js-v0-12-multiple-context-execution/)特性，Electron不需要在网页中引入新的 JavaScript 上下文。
 
-[node-bindings]: https://github.com/atom/electron/tree/master/atom/common
+[node-bindings]: https://github.com/electron/electron/tree/master/atom/common

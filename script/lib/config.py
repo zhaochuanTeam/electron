@@ -7,8 +7,8 @@ import sys
 
 
 BASE_URL = os.getenv('LIBCHROMIUMCONTENT_MIRROR') or \
-    'http://gh-contractor-zcbenz.s3.amazonaws.com/libchromiumcontent'
-LIBCHROMIUMCONTENT_COMMIT = '17a4337f7948a45b5ea4b8f391df152ba8db5979'
+    'https://s3.amazonaws.com/github-janky-artifacts/libchromiumcontent'
+LIBCHROMIUMCONTENT_COMMIT = '31144d583c19b70d8d9de7d4ef15f0f720779860'
 
 PLATFORM = {
   'cygwin': 'win32',
@@ -38,23 +38,29 @@ def get_target_arch():
     if e.errno != errno.ENOENT:
       raise
 
-  if PLATFORM == 'win32':
-    return 'ia32'
-  else:
-    return 'x64'
+  return 'x64'
 
 
 def get_chromedriver_version():
-  return 'v2.15'
+  return 'v2.21'
+
+def get_env_var(name):
+  value = os.environ.get('ELECTRON_' + name, '')
+  if not value:
+    # TODO Remove ATOM_SHELL_* fallback values
+    value = os.environ.get('ATOM_SHELL_' + name, '')
+    if value:
+      print 'Warning: Use $ELECTRON_' + name + ' instead of $ATOM_SHELL_' + name
+  return value
 
 
 def s3_config():
-  config = (os.environ.get('ATOM_SHELL_S3_BUCKET', ''),
-            os.environ.get('ATOM_SHELL_S3_ACCESS_KEY', ''),
-            os.environ.get('ATOM_SHELL_S3_SECRET_KEY', ''))
-  message = ('Error: Please set the $ATOM_SHELL_S3_BUCKET, '
-             '$ATOM_SHELL_S3_ACCESS_KEY, and '
-             '$ATOM_SHELL_S3_SECRET_KEY environment variables')
+  config = (get_env_var('S3_BUCKET'),
+            get_env_var('S3_ACCESS_KEY'),
+            get_env_var('S3_SECRET_KEY'))
+  message = ('Error: Please set the $ELECTRON_S3_BUCKET, '
+             '$ELECTRON_S3_ACCESS_KEY, and '
+             '$ELECTRON_S3_SECRET_KEY environment variables')
   assert all(len(c) for c in config), message
   return config
 

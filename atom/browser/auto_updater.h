@@ -5,9 +5,11 @@
 #ifndef ATOM_BROWSER_AUTO_UPDATER_H_
 #define ATOM_BROWSER_AUTO_UPDATER_H_
 
+#include <map>
 #include <string>
 
-#include "base/basictypes.h"
+#include "base/macros.h"
+#include "build/build_config.h"
 
 namespace base {
 class Time;
@@ -41,11 +43,15 @@ class Delegate {
 
 class AutoUpdater {
  public:
+  typedef std::map<std::string, std::string> HeaderMap;
+
   // Gets/Sets the delegate.
   static Delegate* GetDelegate();
   static void SetDelegate(Delegate* delegate);
 
-  static void SetFeedURL(const std::string& url);
+  static std::string GetFeedURL();
+  static void SetFeedURL(const std::string& url,
+                         const HeaderMap& requestHeaders);
   static void CheckForUpdates();
   static void QuitAndInstall();
 

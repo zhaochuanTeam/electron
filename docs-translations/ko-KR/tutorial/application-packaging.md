@@ -1,15 +1,15 @@
-﻿# 어플리케이션 패키징
+﻿# 애플리케이션 패키징
 
 Windows에서 일어나는 긴 경로 이름에 대한 [issues](https://github.com/joyent/node/issues/6960)를
-완화하고 `require` 속도를 약간 빠르게 하며 어플리케이션의 리소스와 소스코드를 좋지 않은
-사용자로부터 보호하기 위해 어플리케이션을 [asar][asar] 아카이브로 패키징 할 수 있습니다.
+완화하고 `require` 속도를 약간 빠르게 하며 애플리케이션의 리소스와 소스 코드를 좋지 않은
+사용자로부터 보호하기 위해 애플리케이션을 [asar][asar] 아카이브로 패키징 할 수 있습니다.
 
 ## `asar` 아카이브 생성
 
 [asar][asar] 아카이브는 tar과 비슷한 포맷으로 모든 리소스를 하나의 파일로 만듭니다.
 그리고 Electron은 압축해제 없이 임의로 모든 파일을 읽어들일 수 있습니다.
 
-간단한 작업을 통해 어플리케이션을 `asar` 아카이브로 압축할 수 있습니다:
+간단한 작업을 통해 애플리케이션을 `asar` 아카이브로 압축할 수 있습니다:
 
 ### 1. asar 유틸리티 설치
 
@@ -70,8 +70,8 @@ require('/path/to/example.asar/dir/module.js');
 `BrowserWindow` 클래스를 이용해 원하는 웹 페이지도 표시할 수 있습니다:
 
 ```javascript
-const BrowserWindow = require('electron').BrowserWindow;
-var win = new BrowserWindow({width: 800, height: 600});
+const {BrowserWindow} = require('electron');
+let win = new BrowserWindow({width: 800, height: 600});
 win.loadURL('file:///path/to/example.asar/static/index.html');
 ```
 
@@ -84,8 +84,8 @@ win.loadURL('file:///path/to/example.asar/static/index.html');
 
 ```html
 <script>
-var $ = require('./jquery.min.js');
-$.get('file:///path/to/example.asar/file.txt', function(data) {
+let $ = require('./jquery.min.js');
+$.get('file:///path/to/example.asar/file.txt', (data) => {
   console.log(data);
 });
 </script>
@@ -99,8 +99,16 @@ $.get('file:///path/to/example.asar/file.txt', function(data) {
 읽어들입니다:
 
 ```javascript
-var originalFs = require('original-fs');
+const originalFs = require('original-fs');
 originalFs.readFileSync('/path/to/example.asar');
+```
+
+또한 `process.noAsar`를 `true`로 지정하면 `fs` 모듈의 `asar` 지원을 비활성화 시킬 수
+있습니다.
+
+```javascript
+process.noAsar = true;
+fs.readFileSync('/path/to/example.asar');
 ```
 
 ## Node API의 한계
@@ -129,16 +137,29 @@ API가 원할하게 작동할 수 있도록 임시 경로에 해당되는 파일
 위 예외에 해당하는 API 메서드는 다음과 같습니다:
 
 * `child_process.execFile`
+* `child_process.execFileSync`
 * `fs.open`
 * `fs.openSync`
 * `process.dlopen` - Used by `require` on native modules
 
-### `fs.stat`의 잘못된 스테이터스 정보
+### `fs.stat`의 모조된(예측) 스테이터스 정보
 
 `fs.stat` 로부터 반환되는 `Stats` 객체와 비슷한 API들은 `asar` 아카이브를 타겟으로
 할 경우 예측된 디렉터리 파일 정보를 가집니다. 왜냐하면 아카이브의 디렉터리 경로는 실제
-파일 시스템에 존재하지 않기 때문입니다. 그러한 이유로 파일 크기와
-파일 타입 등을 확인할 때 `Stats` 객체를 신뢰해선 안됩니다.
+파일 시스템에 존재하지 않기 때문입니다. 그러한 이유로 파일 크기와 파일 타입 등을 확인할
+때 `Stats` 객체를 신뢰해선 안됩니다.
+
+### `asar` 아카이브 내부의 바이너리 실행
+
+Node API에는 `child_process.exec`, `child_process.spawn` 그리고
+`child_process.execFile`와 같은 바이너리를 실행시킬 수 있는 API가 있습니다. 하지만
+`asar` 아카이브 내에선 `execFile` API만 사용할 수 있습니다.
+
+이 한계가 존재하는 이유는 `exec`와 `spawn`은 `file` 대신 `command`를 인수로 허용하고
+있고 `command`는 shell에서 작동하기 때문입니다. Electron은 어떤 커맨드가 `asar`
+아카이브 내의 파일을 사용하는지 결정하는데 적절한 방법을 가지고 있지 않으며, 심지어
+그게 가능하다고 해도 부작용 없이 명령 경로를 대체할 수 있는지에 대해 확실히 알 수 있는
+방법이 없습니다.
 
 ## `asar` 아카이브에 미리 압축 해제된 파일 추가하기
 
@@ -147,7 +168,7 @@ API가 원할하게 작동할 수 있도록 임시 경로에 해당되는 파일
 바이러스로 진단 할 수도 있습니다.
 
 이 문제를 해결하려면 `--unpack` 옵션을 통해 파일을 압축이 풀려진 상태로 유지해야 합니다.
-다음의 예제는 node 네이티브 모듈의 공유 라이브러리를 압축이 풀려진 상태로 유지합니다:
+다음의 예시는 node 네이티브 모듈의 공유 라이브러리를 압축이 풀려진 상태로 유지합니다:
 
 ```bash
 $ asar pack app app.asar --unpack *.node
@@ -155,7 +176,7 @@ $ asar pack app app.asar --unpack *.node
 
 커맨드를 실행한 후 같은 디렉터리에 `app.asar` 파일 외에 `app.asar.unpacked` 폴더가
 같이 생성됩니다. 이 폴더안에 unpack 옵션에서 설정한 파일들이 압축이 풀려진 상태로
-포함되어 있습니다. 사용자에게 어플리케이션을 배포할 때 반드시 해당 폴더도 같이 배포해야
+포함되어 있습니다. 사용자에게 애플리케이션을 배포할 때 반드시 해당 폴더도 같이 배포해야
 합니다.
 
-[asar]: https://github.com/atom/asar
+[asar]: https://github.com/electron/asar

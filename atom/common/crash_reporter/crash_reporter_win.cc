@@ -43,6 +43,10 @@ const MINIDUMP_TYPE kSmallDumpType = static_cast<MINIDUMP_TYPE>(
 const wchar_t kWaitEventFormat[] = L"$1CrashServiceWaitEvent";
 const wchar_t kPipeNameFormat[] = L"\\\\.\\pipe\\$1 Crash Service";
 
+// Matches breakpad/src/client/windows/common/ipc_protocol.h.
+const int kNameMaxLength = 64;
+const int kValueMaxLength = 64;
+
 typedef NTSTATUS (WINAPI* NtTerminateProcessPtr)(HANDLE ProcessHandle,
                                                  NTSTATUS ExitStatus);
 char* g_real_terminate_process_stub = NULL;
@@ -133,7 +137,8 @@ void UnregisterNonABICompliantCodeRange(void* start) {
 
 }  // namespace
 
-CrashReporterWin::CrashReporterWin() {
+CrashReporterWin::CrashReporterWin()
+    : skip_system_crash_handler_(false) {
 }
 
 CrashReporterWin::~CrashReporterWin() {
@@ -153,9 +158,9 @@ void CrashReporterWin::InitBreakpad(const std::string& product_name,
     return;
   }
 
-  base::string16 pipe_name = ReplaceStringPlaceholders(
+  base::string16 pipe_name = base::ReplaceStringPlaceholders(
       kPipeNameFormat, base::UTF8ToUTF16(product_name), NULL);
-  base::string16 wait_name = ReplaceStringPlaceholders(
+  base::string16 wait_name = base::ReplaceStringPlaceholders(
       kWaitEventFormat, base::UTF8ToUTF16(product_name), NULL);
 
   // Wait until the crash service is started.
@@ -247,9 +252,18 @@ google_breakpad::CustomClientInfo* CrashReporterWin::GetCustomInfo(
 
   for (StringMap::const_iterator iter = upload_parameters_.begin();
        iter != upload_parameters_.end(); ++iter) {
-    custom_info_entries_.push_back(google_breakpad::CustomInfoEntry(
-        base::UTF8ToWide(iter->first).c_str(),
-        base::UTF8ToWide(iter->second).c_str()));
+    // breakpad has hardcoded the length of name/value, and doesn't truncate
+    // the values itself, so we have to truncate them here otherwise weird
+    // things may happen.
+    std::wstring name = base::UTF8ToWide(iter->first);
+    std::wstring value = base::UTF8ToWide(iter->second);
+    if (name.length() > kNameMaxLength - 1)
+      name.resize(kNameMaxLength - 1);
+    if (value.length() > kValueMaxLength - 1)
+      value.resize(kValueMaxLength - 1);
+
+    custom_info_entries_.push_back(
+        google_breakpad::CustomInfoEntry(name.c_str(), value.c_str()));
   }
 
   custom_info_.entries = &custom_info_entries_.front();
@@ -259,7 +273,7 @@ google_breakpad::CustomClientInfo* CrashReporterWin::GetCustomInfo(
 
 // static
 CrashReporterWin* CrashReporterWin::GetInstance() {
-  return Singleton<CrashReporterWin>::get();
+  return base::Singleton<CrashReporterWin>::get();
 }
 
 // static

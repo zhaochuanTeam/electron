@@ -54,7 +54,7 @@ TaskbarHost::~TaskbarHost() {
 
 bool TaskbarHost::SetThumbarButtons(
     HWND window, const std::vector<ThumbarButton>& buttons) {
-  if (buttons.size() > kMaxButtonsCount || !InitailizeTaskbar())
+  if (buttons.size() > kMaxButtonsCount || !InitializeTaskbar())
     return false;
 
   callback_map_.clear();
@@ -91,7 +91,7 @@ bool TaskbarHost::SetThumbarButtons(
     if (!button.icon.IsEmpty()) {
       thumb_button.dwMask |= THB_ICON;
       icons[i] = IconUtil::CreateHICONFromSkBitmap(button.icon.AsBitmap());
-      thumb_button.hIcon = icons[i].Get();
+      thumb_button.hIcon = icons[i].get();
     }
 
     // Set tooltip.
@@ -118,7 +118,7 @@ bool TaskbarHost::SetThumbarButtons(
 }
 
 bool TaskbarHost::SetProgressBar(HWND window, double value) {
-  if (!InitailizeTaskbar())
+  if (!InitializeTaskbar())
     return false;
 
   HRESULT r;
@@ -133,13 +133,29 @@ bool TaskbarHost::SetProgressBar(HWND window, double value) {
 
 bool TaskbarHost::SetOverlayIcon(
     HWND window, const gfx::Image& overlay, const std::string& text) {
-  if (!InitailizeTaskbar())
+  if (!InitializeTaskbar())
     return false;
 
   base::win::ScopedHICON icon(
       IconUtil::CreateHICONFromSkBitmap(overlay.AsBitmap()));
-  return SUCCEEDED(
-      taskbar_->SetOverlayIcon(window, icon, base::UTF8ToUTF16(text).c_str()));
+  return SUCCEEDED(taskbar_->SetOverlayIcon(
+      window, icon.get(), base::UTF8ToUTF16(text).c_str()));
+}
+
+bool TaskbarHost::SetThumbnailClip(HWND window, const gfx::Rect& region) {
+  if (!InitializeTaskbar())
+    return false;
+
+  if (region.IsEmpty()) {
+    return SUCCEEDED(taskbar_->SetThumbnailClip(window, NULL));
+  } else {
+    RECT rect;
+    rect.left = region.x();
+    rect.right = region.right();
+    rect.top = region.y();
+    rect.bottom = region.bottom();
+    return SUCCEEDED(taskbar_->SetThumbnailClip(window, &rect));
+  }
 }
 
 bool TaskbarHost::HandleThumbarButtonEvent(int button_id) {
@@ -152,7 +168,7 @@ bool TaskbarHost::HandleThumbarButtonEvent(int button_id) {
   return false;
 }
 
-bool TaskbarHost::InitailizeTaskbar() {
+bool TaskbarHost::InitializeTaskbar() {
   if (FAILED(taskbar_.CreateInstance(CLSID_TaskbarList,
                                      nullptr,
                                      CLSCTX_INPROC_SERVER)) ||

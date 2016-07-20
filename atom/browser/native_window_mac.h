@@ -22,7 +22,8 @@ namespace atom {
 class NativeWindowMac : public NativeWindow {
  public:
   NativeWindowMac(brightray::InspectableWebContents* inspectable_web_contents,
-                  const mate::Dictionary& options);
+                  const mate::Dictionary& options,
+                  NativeWindow* parent);
   ~NativeWindowMac() override;
 
   // NativeWindow:
@@ -34,6 +35,7 @@ class NativeWindowMac : public NativeWindow {
   void ShowInactive() override;
   void Hide() override;
   bool IsVisible() override;
+  bool IsEnabled() override;
   void Maximize() override;
   void Unmaximize() override;
   bool IsMaximized() override;
@@ -42,12 +44,24 @@ class NativeWindowMac : public NativeWindow {
   bool IsMinimized() override;
   void SetFullScreen(bool fullscreen) override;
   bool IsFullscreen() const override;
-  void SetBounds(const gfx::Rect& bounds) override;
+  void SetBounds(const gfx::Rect& bounds, bool animate = false) override;
   gfx::Rect GetBounds() override;
   void SetContentSizeConstraints(
       const extensions::SizeConstraints& size_constraints) override;
   void SetResizable(bool resizable) override;
   bool IsResizable() override;
+  void SetMovable(bool movable) override;
+  void SetAspectRatio(double aspect_ratio, const gfx::Size& extra_size)
+    override;
+  bool IsMovable() override;
+  void SetMinimizable(bool minimizable) override;
+  bool IsMinimizable() override;
+  void SetMaximizable(bool maximizable) override;
+  bool IsMaximizable() override;
+  void SetFullScreenable(bool fullscreenable) override;
+  bool IsFullScreenable() override;
+  void SetClosable(bool closable) override;
+  bool IsClosable() override;
   void SetAlwaysOnTop(bool top) override;
   bool IsAlwaysOnTop() override;
   void Center() override;
@@ -58,16 +72,20 @@ class NativeWindowMac : public NativeWindow {
   void SetKiosk(bool kiosk) override;
   bool IsKiosk() override;
   void SetBackgroundColor(const std::string& color_name) override;
+  void SetHasShadow(bool has_shadow) override;
+  bool HasShadow() override;
   void SetRepresentedFilename(const std::string& filename) override;
   std::string GetRepresentedFilename() override;
   void SetDocumentEdited(bool edited) override;
   bool IsDocumentEdited() override;
-  bool HasModalDialog() override;
+  void SetIgnoreMouseEvents(bool ignore) override;
+  void SetContentProtection(bool enable) override;
+  void SetParentWindow(NativeWindow* parent) override;
   gfx::NativeWindow GetNativeWindow() override;
+  gfx::AcceleratedWidget GetAcceleratedWidget() override;
   void SetProgressBar(double progress) override;
   void SetOverlayIcon(const gfx::Image& overlay,
                       const std::string& description) override;
-  void ShowDefinitionForSelection() override;
 
   void SetVisibleOnAllWorkspaces(bool visible) override;
   bool IsVisibleOnAllWorkspaces() override;
@@ -77,12 +95,18 @@ class NativeWindowMac : public NativeWindow {
     UpdateDraggableRegionViews(draggable_regions_);
   }
 
- protected:
-  // NativeWindow:
-  void HandleKeyboardEvent(
-      content::WebContents*,
-      const content::NativeWebKeyboardEvent&) override;
+  // Set the attribute of NSWindow while work around a bug of zoom button.
+  void SetStyleMask(bool on, NSUInteger flag);
+  void SetCollectionBehavior(bool on, NSUInteger flag);
 
+  enum TitleBarStyle {
+    NORMAL,
+    HIDDEN,
+    HIDDEN_INSET,
+  };
+  TitleBarStyle title_bar_style() const { return title_bar_style_; }
+
+ protected:
   // Return a vector of non-draggable regions that fill a window of size
   // |width| by |height|, but leave gaps where the window should be draggable.
   std::vector<gfx::Rect> CalculateNonDraggableRegions(
@@ -105,6 +129,9 @@ class NativeWindowMac : public NativeWindow {
   base::scoped_nsobject<AtomNSWindow> window_;
   base::scoped_nsobject<AtomNSWindowDelegate> window_delegate_;
 
+  // Event monitor for scroll wheel event.
+  id wheel_event_monitor_;
+
   // The view that will fill the whole frameless window.
   base::scoped_nsobject<FullSizeContentView> content_view_;
 
@@ -116,6 +143,9 @@ class NativeWindowMac : public NativeWindow {
 
   // The presentation options before entering kiosk mode.
   NSApplicationPresentationOptions kiosk_options_;
+
+  // The "titleBarStyle" option.
+  TitleBarStyle title_bar_style_;
 
   DISALLOW_COPY_AND_ASSIGN(NativeWindowMac);
 };

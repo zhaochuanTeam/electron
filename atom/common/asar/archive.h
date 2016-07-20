@@ -25,10 +25,11 @@ class ScopedTemporaryFile;
 class Archive {
  public:
   struct FileInfo {
-    FileInfo() : size(0), offset(0) {}
+    FileInfo() : unpacked(false), executable(false), size(0), offset(0) {}
     bool unpacked;
-    uint32 size;
-    uint64 offset;
+    bool executable;
+    uint32_t size;
+    uint64_t offset;
   };
 
   struct Stats : public FileInfo {
@@ -70,11 +71,11 @@ class Archive {
   base::FilePath path_;
   base::File file_;
   int fd_;
-  uint32 header_size_;
-  scoped_ptr<base::DictionaryValue> header_;
+  uint32_t header_size_;
+  std::unique_ptr<base::DictionaryValue> header_;
 
   // Cached external temporary files.
-  base::ScopedPtrHashMap<base::FilePath, scoped_ptr<ScopedTemporaryFile>>
+  base::ScopedPtrHashMap<base::FilePath, std::unique_ptr<ScopedTemporaryFile>>
       external_files_;
 
   DISALLOW_COPY_AND_ASSIGN(Archive);

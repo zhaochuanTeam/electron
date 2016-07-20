@@ -12,7 +12,7 @@ TrayIcon::TrayIcon() {
 TrayIcon::~TrayIcon() {
 }
 
-void TrayIcon::SetPressedImage(const gfx::Image& image) {
+void TrayIcon::SetPressedImage(ImageType image) {
 }
 
 void TrayIcon::SetTitle(const std::string& title) {
@@ -21,12 +21,17 @@ void TrayIcon::SetTitle(const std::string& title) {
 void TrayIcon::SetHighlightMode(bool highlight) {
 }
 
-void TrayIcon::DisplayBalloon(const gfx::Image& icon,
+void TrayIcon::DisplayBalloon(ImageType icon,
                               const base::string16& title,
                               const base::string16& contents) {
 }
 
-void TrayIcon::PopUpContextMenu(const gfx::Point& pos) {
+void TrayIcon::PopUpContextMenu(const gfx::Point& pos,
+                                AtomMenuModel* menu_model) {
+}
+
+gfx::Rect TrayIcon::GetBounds() {
+  return gfx::Rect();
 }
 
 void TrayIcon::NotifyClicked(const gfx::Rect& bounds, int modifiers) {
@@ -61,6 +66,10 @@ void TrayIcon::NotifyDrop() {
 
 void TrayIcon::NotifyDropFiles(const std::vector<std::string>& files) {
   FOR_EACH_OBSERVER(TrayIconObserver, observers_, OnDropFiles(files));
+}
+
+void TrayIcon::NotifyDropText(const std::string& text) {
+  FOR_EACH_OBSERVER(TrayIconObserver, observers_, OnDropText(text));
 }
 
 void TrayIcon::NotifyDragEntered() {

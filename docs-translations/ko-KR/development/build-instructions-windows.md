@@ -5,12 +5,13 @@
 ## 빌드전 요구 사항
 
 * Windows 7 / Server 2008 R2 또는 최신 버전
-* Visual Studio 2013 - [VS 2013 커뮤니티 에디션 무료 다운로드](http://www.visualstudio.com/products/visual-studio-community-vs)
+* Visual Studio 2015 - [VS 2015 커뮤니티 에디션 무료 다운로드](https://www.visualstudio.com/en-us/products/visual-studio-community-vs.aspx)
 * [Python 2.7](http://www.python.org/download/releases/2.7/)
 * [Node.js](http://nodejs.org/download/)
 * [Git](http://git-scm.com)
 
-현재 사용하고 있는 PC에 Windows를 설치하지 않았다면 [modern.ie](https://www.modern.ie/en-us/virtualization-tools#downloads)에서
+현재 사용하고 있는 PC에 Windows를 설치하지 않았다면
+[dev.microsoftedge.com](https://developer.microsoft.com/en-us/microsoft-edge/tools/vms/)에서
 사용 기한이 정해져있는 무료 가상머신 버전의 Windows를 받아 Electron을 빌드하는 방법도
 있습니다.
 
@@ -21,13 +22,13 @@ Studio를 사용할 수 없습니다. 하지만 여전히 Electron을 개발할 
 **참고:** Visual Studio가 직접 빌드에 사용되지 않더라도 IDE와 같이 제공된 빌드
 툴체인이 빌드에 **반드시** 사용되므로 여전히 필요합니다.
 
-**참고:** Visual Studio 2015는 사용할 수 없습니다 MSVS **2013** 을 사용하고 있는지
+**참고:** Visual Studio 2013은 사용할 수 없습니다 MSVS **2015** 을 사용하고 있는지
 확인해주세요.
 
 ## 코드 가져오기
 
 ```powershell
-$ git clone https://github.com/atom/electron.git
+$ git clone https://github.com/electron/electron.git
 ```
 
 ## 부트 스트랩
@@ -41,7 +42,7 @@ $ cd electron
 $ python script\bootstrap.py -v
 ```
 
-## 빌드 하기
+## 빌드하기
 
 `Release` 와 `Debug` 두 타겟 모두 빌드 합니다:
 
@@ -61,7 +62,7 @@ $ python script\build.py -c D
 ## 64비트 빌드
 
 64비트를 타겟으로 빌드 하려면 부트스트랩 스크립트를 실행할 때 `--target_arch=x64`
-인자를 같이 넘겨주면 됩니다:
+인수를 같이 넘겨주면 됩니다:
 
 ```powershell
 $ python script\bootstrap.py -v --target_arch=x64
@@ -97,7 +98,7 @@ $ python script\test.py -R
 ### Command xxxx not found
 
 만약 `Command xxxx not found`와 같은 형식의 에러가 발생했다면
-`VS2012 Command Prompt` 콘솔로 빌드 스크립트를 실행해볼 필요가 있습니다.
+`VS2015 Command Prompt` 콘솔로 빌드 스크립트를 실행해 보는게 좋습니다.
 
 ### Fatal internal compiler error: C1001
 
@@ -146,4 +147,4 @@ $ mkdir ~\AppData\Roaming\npm
 ### node-gyp is not recognized as an internal or external command
 
 Git Bash로 빌드 했을 때 이러한 에러가 발생할 수 있습니다. 반드시 PowerShell이나
-VS2012 Command Prompt에서 빌드를 진행해야 합니다.
+VS2015 Command Prompt에서 빌드를 진행해야 합니다.

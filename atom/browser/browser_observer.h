@@ -7,6 +7,12 @@
 
 #include <string>
 
+#include "build/build_config.h"
+
+namespace base {
+class DictionaryValue;
+}
+
 namespace atom {
 
 class LoginHandler;
@@ -27,7 +33,7 @@ class BrowserObserver {
   virtual void OnQuit() {}
 
   // The browser has opened a file by double clicking in Finder or dragging the
-  // file to the Dock icon. (OS X only)
+  // file to the Dock icon. (macOS only)
   virtual void OnOpenFile(bool* prevent_default,
                           const std::string& file_path) {}
 
@@ -43,7 +49,19 @@ class BrowserObserver {
   virtual void OnFinishLaunching() {}
 
   // The browser requests HTTP login.
-  virtual void OnLogin(LoginHandler* login_handler) {}
+  virtual void OnLogin(LoginHandler* login_handler,
+                       const base::DictionaryValue& request_details) {}
+
+  // The browser's accessibility suppport has changed.
+  virtual void OnAccessibilitySupportChanged() {}
+
+#if defined(OS_MACOSX)
+  // The browser wants to resume a user activity via handoff. (macOS only)
+  virtual void OnContinueUserActivity(
+      bool* prevent_default,
+      const std::string& type,
+      const base::DictionaryValue& user_info) {}
+#endif
 
  protected:
   virtual ~BrowserObserver() {}

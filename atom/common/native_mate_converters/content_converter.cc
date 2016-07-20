@@ -4,10 +4,16 @@
 
 #include "atom/common/native_mate_converters/content_converter.h"
 
+#include <string>
 #include <vector>
 
+#include "atom/browser/api/atom_api_web_contents.h"
+#include "atom/browser/web_contents_permission_helper.h"
+#include "atom/common/native_mate_converters/blink_converter.h"
 #include "atom/common/native_mate_converters/callback.h"
+#include "atom/common/native_mate_converters/gurl_converter.h"
 #include "atom/common/native_mate_converters/string16_converter.h"
+#include "atom/common/native_mate_converters/ui_base_types_converter.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/context_menu_params.h"
 #include "native_mate/dictionary.h"
@@ -91,10 +97,120 @@ v8::Local<v8::Value> Converter<ContextMenuParamsWithWebContents>::ToV8(
   mate::Dictionary dict = mate::Dictionary::CreateEmpty(isolate);
   dict.Set("x", params.x);
   dict.Set("y", params.y);
+  dict.Set("linkURL", params.link_url);
+  dict.Set("linkText", params.link_text);
+  dict.Set("pageURL", params.page_url);
+  dict.Set("frameURL", params.frame_url);
+  dict.Set("srcURL", params.src_url);
+  dict.Set("mediaType", params.media_type);
+  dict.Set("mediaFlags", MediaFlagsToV8(isolate, params.media_flags));
+  dict.Set("hasImageContents", params.has_image_contents);
+  dict.Set("isEditable", params.is_editable);
+  dict.Set("editFlags", EditFlagsToV8(isolate, params.edit_flags));
+  dict.Set("selectionText", params.selection_text);
+  dict.Set("titleText", params.title_text);
+  dict.Set("misspelledWord", params.misspelled_word);
+  dict.Set("frameCharset", params.frame_charset);
+  dict.Set("inputFieldType", params.input_field_type);
+  dict.Set("menuSourceType",  params.source_type);
+
   if (params.custom_context.is_pepper_menu)
     dict.Set("menu", MenuToV8(isolate, val.second, params.custom_context,
                               params.custom_items));
   return mate::ConvertToV8(isolate, dict);
+}
+
+// static
+bool Converter<blink::mojom::PermissionStatus>::FromV8(
+    v8::Isolate* isolate,
+    v8::Local<v8::Value> val,
+    blink::mojom::PermissionStatus* out) {
+  bool result;
+  if (!ConvertFromV8(isolate, val, &result))
+    return false;
+
+  if (result)
+    *out = blink::mojom::PermissionStatus::GRANTED;
+  else
+    *out = blink::mojom::PermissionStatus::DENIED;
+
+  return true;
+}
+
+// static
+v8::Local<v8::Value> Converter<content::PermissionType>::ToV8(
+    v8::Isolate* isolate, const content::PermissionType& val) {
+  using PermissionType = atom::WebContentsPermissionHelper::PermissionType;
+  switch (val) {
+    case content::PermissionType::MIDI_SYSEX:
+      return StringToV8(isolate, "midiSysex");
+    case content::PermissionType::PUSH_MESSAGING:
+      return StringToV8(isolate, "pushMessaging");
+    case content::PermissionType::NOTIFICATIONS:
+      return StringToV8(isolate, "notifications");
+    case content::PermissionType::GEOLOCATION:
+      return StringToV8(isolate, "geolocation");
+    case content::PermissionType::AUDIO_CAPTURE:
+    case content::PermissionType::VIDEO_CAPTURE:
+      return StringToV8(isolate, "media");
+    case content::PermissionType::PROTECTED_MEDIA_IDENTIFIER:
+      return StringToV8(isolate, "mediaKeySystem");
+    case content::PermissionType::MIDI:
+      return StringToV8(isolate, "midi");
+    default:
+      break;
+  }
+
+  if (val == (content::PermissionType)(PermissionType::POINTER_LOCK))
+    return StringToV8(isolate, "pointerLock");
+  else if (val == (content::PermissionType)(PermissionType::FULLSCREEN))
+    return StringToV8(isolate, "fullscreen");
+  else if (val == (content::PermissionType)(PermissionType::OPEN_EXTERNAL))
+    return StringToV8(isolate, "openExternal");
+
+  return StringToV8(isolate, "unknown");
+}
+
+// static
+bool Converter<content::StopFindAction>::FromV8(
+    v8::Isolate* isolate,
+    v8::Local<v8::Value> val,
+    content::StopFindAction* out) {
+  std::string action;
+  if (!ConvertFromV8(isolate, val, &action))
+    return false;
+
+  if (action == "clearSelection")
+    *out = content::STOP_FIND_ACTION_CLEAR_SELECTION;
+  else if (action == "keepSelection")
+    *out = content::STOP_FIND_ACTION_KEEP_SELECTION;
+  else if (action == "activateSelection")
+    *out = content::STOP_FIND_ACTION_ACTIVATE_SELECTION;
+  else
+    return false;
+
+  return true;
+}
+
+// static
+v8::Local<v8::Value> Converter<content::WebContents*>::ToV8(
+    v8::Isolate* isolate, content::WebContents* val) {
+  if (!val)
+    return v8::Null(isolate);
+  return atom::api::WebContents::CreateFrom(isolate, val).ToV8();
+}
+
+// static
+bool Converter<content::WebContents*>::FromV8(
+    v8::Isolate* isolate,
+    v8::Local<v8::Value> val,
+    content::WebContents** out) {
+  atom::api::WebContents* web_contents = nullptr;
+  if (!ConvertFromV8(isolate, val, &web_contents) || !web_contents)
+    return false;
+
+  *out = web_contents->web_contents();
+  return true;
 }
 
 }  // namespace mate

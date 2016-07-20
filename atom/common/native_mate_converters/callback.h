@@ -13,29 +13,26 @@
 #include "base/memory/weak_ptr.h"
 #include "native_mate/function_template.h"
 #include "native_mate/scoped_persistent.h"
-#include "third_party/WebKit/public/web/WebScopedMicrotaskSuppression.h"
 
 namespace mate {
 
 namespace internal {
 
-// Manages the V8 function with RAII, and automatically cleans the handle when
-// JavaScript context is destroyed, even when the class is not destroyed.
+template<typename T>
+class RefCountedGlobal;
+
+// Manages the V8 function with RAII.
 class SafeV8Function {
  public:
   SafeV8Function(v8::Isolate* isolate, v8::Local<v8::Value> value);
   SafeV8Function(const SafeV8Function& other);
+  ~SafeV8Function();
 
-  bool is_alive() const { return v8_function_.get(); }
-
-  v8::Local<v8::Function> NewHandle() const;
+  bool IsAlive() const;
+  v8::Local<v8::Function> NewHandle(v8::Isolate* isolate) const;
 
  private:
-  void Init();
-  void FreeHandle();
-
-  scoped_refptr<RefCountedPersistent<v8::Function>> v8_function_;
-  base::WeakPtrFactory<SafeV8Function> weak_factory_;
+  scoped_refptr<RefCountedGlobal<v8::Function>> v8_function_;
 };
 
 // Helper to invoke a V8 function with C++ parameters.
@@ -49,12 +46,11 @@ struct V8FunctionInvoker<v8::Local<v8::Value>(ArgTypes...)> {
                                  ArgTypes... raw) {
     Locker locker(isolate);
     v8::EscapableHandleScope handle_scope(isolate);
-    if (!function.is_alive())
+    if (!function.IsAlive())
       return v8::Null(isolate);
-    scoped_ptr<blink::WebScopedRunV8Script> script_scope(
-        Locker::IsBrowserProcess() ?
-        nullptr : new blink::WebScopedRunV8Script(isolate));
-    v8::Local<v8::Function> holder = function.NewHandle();
+    v8::MicrotasksScope script_scope(isolate,
+                                     v8::MicrotasksScope::kRunMicrotasks);
+    v8::Local<v8::Function> holder = function.NewHandle(isolate);
     v8::Local<v8::Context> context = holder->CreationContext();
     v8::Context::Scope context_scope(context);
     std::vector<v8::Local<v8::Value>> args = { ConvertToV8(isolate, raw)... };
@@ -70,12 +66,11 @@ struct V8FunctionInvoker<void(ArgTypes...)> {
                  ArgTypes... raw) {
     Locker locker(isolate);
     v8::HandleScope handle_scope(isolate);
-    if (!function.is_alive())
+    if (!function.IsAlive())
       return;
-    scoped_ptr<blink::WebScopedRunV8Script> script_scope(
-        Locker::IsBrowserProcess() ?
-        nullptr : new blink::WebScopedRunV8Script(isolate));
-    v8::Local<v8::Function> holder = function.NewHandle();
+    v8::MicrotasksScope script_scope(isolate,
+                                     v8::MicrotasksScope::kRunMicrotasks);
+    v8::Local<v8::Function> holder = function.NewHandle(isolate);
     v8::Local<v8::Context> context = holder->CreationContext();
     v8::Context::Scope context_scope(context);
     std::vector<v8::Local<v8::Value>> args = { ConvertToV8(isolate, raw)... };
@@ -91,12 +86,11 @@ struct V8FunctionInvoker<ReturnType(ArgTypes...)> {
     Locker locker(isolate);
     v8::HandleScope handle_scope(isolate);
     ReturnType ret = ReturnType();
-    if (!function.is_alive())
+    if (!function.IsAlive())
       return ret;
-    scoped_ptr<blink::WebScopedRunV8Script> script_scope(
-        Locker::IsBrowserProcess() ?
-        nullptr : new blink::WebScopedRunV8Script(isolate));
-    v8::Local<v8::Function> holder = function.NewHandle();
+    v8::MicrotasksScope script_scope(isolate,
+                                     v8::MicrotasksScope::kRunMicrotasks);
+    v8::Local<v8::Function> holder = function.NewHandle(isolate);
     v8::Local<v8::Context> context = holder->CreationContext();
     v8::Context::Scope context_scope(context);
     std::vector<v8::Local<v8::Value>> args = { ConvertToV8(isolate, raw)... };

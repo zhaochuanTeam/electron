@@ -55,7 +55,7 @@ class V8ValueConverter::FromV8ValueState {
     // hash. Different hash obviously means different objects, but two objects
     // in a couple of thousands could have the same identity hash.
     std::pair<Iterator, Iterator> range = unique_map_.equal_range(hash);
-    for (Iterator it = range.first; it != range.second; ++it) {
+    for (auto it = range.first; it != range.second; ++it) {
       // Operator == for handles actually compares the underlying objects.
       if (it->second == handle)
         return false;
@@ -76,14 +76,9 @@ class V8ValueConverter::FromV8ValueState {
 };
 
 V8ValueConverter::V8ValueConverter()
-    : date_allowed_(false),
-      reg_exp_allowed_(false),
+    : reg_exp_allowed_(false),
       function_allowed_(false),
       strip_null_from_objects_(false) {}
-
-void V8ValueConverter::SetDateAllowed(bool val) {
-  date_allowed_ = val;
-}
 
 void V8ValueConverter::SetRegExpAllowed(bool val) {
   reg_exp_allowed_ = val;
@@ -167,14 +162,14 @@ v8::Local<v8::Value> V8ValueConverter::ToV8Array(
   v8::Local<v8::Array> result(v8::Array::New(isolate, val->GetSize()));
 
   for (size_t i = 0; i < val->GetSize(); ++i) {
-    const base::Value* child = NULL;
+    const base::Value* child = nullptr;
     CHECK(val->Get(i, &child));
 
     v8::Local<v8::Value> child_v8 = ToV8ValueImpl(isolate, child);
     CHECK(!child_v8.IsEmpty());
 
     v8::TryCatch try_catch;
-    result->Set(static_cast<uint32>(i), child_v8);
+    result->Set(static_cast<uint32_t>(i), child_v8);
     if (try_catch.HasCaught())
       LOG(ERROR) << "Setter for index " << i << " threw an exception.";
   }
@@ -219,7 +214,7 @@ base::Value* V8ValueConverter::FromV8ValueImpl(
 
   FromV8ValueState::Level state_level(state);
   if (state->HasReachedMaxRecursionDepth())
-    return NULL;
+    return nullptr;
 
   if (val->IsNull())
     return base::Value::CreateNullValue().release();
@@ -240,15 +235,20 @@ base::Value* V8ValueConverter::FromV8ValueImpl(
 
   if (val->IsUndefined())
     // JSON.stringify ignores undefined.
-    return NULL;
+    return nullptr;
 
   if (val->IsDate()) {
-    if (!date_allowed_)
-      // JSON.stringify would convert this to a string, but an object is more
-      // consistent within this class.
-      return FromV8Object(val->ToObject(), state, isolate);
     v8::Date* date = v8::Date::Cast(*val);
-    return new base::FundamentalValue(date->NumberValue() / 1000.0);
+    v8::Local<v8::Value> toISOString =
+        date->Get(v8::String::NewFromUtf8(isolate, "toISOString"));
+    if (toISOString->IsFunction()) {
+      v8::Local<v8::Value> result =
+          toISOString.As<v8::Function>()->Call(val, 0, nullptr);
+      if (!result.IsEmpty()) {
+        v8::String::Utf8Value utf8(result->ToString());
+        return new base::StringValue(std::string(*utf8, utf8.length()));
+      }
+    }
   }
 
   if (val->IsRegExp()) {
@@ -265,7 +265,7 @@ base::Value* V8ValueConverter::FromV8ValueImpl(
   if (val->IsFunction()) {
     if (!function_allowed_)
       // JSON.stringify refuses to convert function(){}.
-      return NULL;
+      return nullptr;
     return FromV8Object(val->ToObject(), state, isolate);
   }
 
@@ -278,7 +278,7 @@ base::Value* V8ValueConverter::FromV8ValueImpl(
   }
 
   LOG(ERROR) << "Unexpected v8 value type encountered.";
-  return NULL;
+  return nullptr;
 }
 
 base::Value* V8ValueConverter::FromV8Array(
@@ -288,17 +288,17 @@ base::Value* V8ValueConverter::FromV8Array(
   if (!state->UpdateAndCheckUniqueness(val))
     return base::Value::CreateNullValue().release();
 
-  scoped_ptr<v8::Context::Scope> scope;
+  std::unique_ptr<v8::Context::Scope> scope;
   // If val was created in a different context than our current one, change to
   // that context, but change back after val is converted.
   if (!val->CreationContext().IsEmpty() &&
       val->CreationContext() != isolate->GetCurrentContext())
     scope.reset(new v8::Context::Scope(val->CreationContext()));
 
-  base::ListValue* result = new base::ListValue();
+  auto* result = new base::ListValue();
 
   // Only fields with integer keys are carried over to the ListValue.
-  for (uint32 i = 0; i < val->Length(); ++i) {
+  for (uint32_t i = 0; i < val->Length(); ++i) {
     v8::TryCatch try_catch;
     v8::Local<v8::Value> child_v8 = val->Get(i);
     if (try_catch.HasCaught()) {
@@ -335,17 +335,17 @@ base::Value* V8ValueConverter::FromV8Object(
   if (!state->UpdateAndCheckUniqueness(val))
     return base::Value::CreateNullValue().release();
 
-  scoped_ptr<v8::Context::Scope> scope;
+  std::unique_ptr<v8::Context::Scope> scope;
   // If val was created in a different context than our current one, change to
   // that context, but change back after val is converted.
   if (!val->CreationContext().IsEmpty() &&
       val->CreationContext() != isolate->GetCurrentContext())
     scope.reset(new v8::Context::Scope(val->CreationContext()));
 
-  scoped_ptr<base::DictionaryValue> result(new base::DictionaryValue());
+  std::unique_ptr<base::DictionaryValue> result(new base::DictionaryValue());
   v8::Local<v8::Array> property_names(val->GetOwnPropertyNames());
 
-  for (uint32 i = 0; i < property_names->Length(); ++i) {
+  for (uint32_t i = 0; i < property_names->Length(); ++i) {
     v8::Local<v8::Value> key(property_names->Get(i));
 
     // Extend this test to cover more types as necessary and if sensible.
@@ -371,7 +371,8 @@ base::Value* V8ValueConverter::FromV8Object(
       child_v8 = v8::Null(isolate);
     }
 
-    scoped_ptr<base::Value> child(FromV8ValueImpl(state, child_v8, isolate));
+    std::unique_ptr<base::Value> child(
+        FromV8ValueImpl(state, child_v8, isolate));
     if (!child.get())
       // JSON.stringify skips properties whose values don't serialize, for
       // example undefined and functions. Emulate that behavior.

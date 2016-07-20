@@ -13,7 +13,9 @@
 #include "base/memory/scoped_ptr.h"
 #include "vendor/breakpad/src/client/windows/handler/exception_handler.h"
 
+namespace base {
 template <typename T> struct DefaultSingletonTraits;
+}
 
 namespace crash_reporter {
 
@@ -33,7 +35,7 @@ class CrashReporterWin : public CrashReporter {
   int CrashForException(EXCEPTION_POINTERS* info);
 
  private:
-  friend struct DefaultSingletonTraits<CrashReporterWin>;
+  friend struct base::DefaultSingletonTraits<CrashReporterWin>;
 
   CrashReporterWin();
   virtual ~CrashReporterWin();
@@ -60,7 +62,7 @@ class CrashReporterWin : public CrashReporter {
   google_breakpad::CustomClientInfo custom_info_;
 
   bool skip_system_crash_handler_;
-  scoped_ptr<google_breakpad::ExceptionHandler> breakpad_;
+  std::unique_ptr<google_breakpad::ExceptionHandler> breakpad_;
 
   DISALLOW_COPY_AND_ASSIGN(CrashReporterWin);
 };

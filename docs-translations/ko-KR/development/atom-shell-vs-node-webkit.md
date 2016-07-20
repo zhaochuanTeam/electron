@@ -3,20 +3,20 @@
 __참고: Electron은 Atom Shell의 새로운 이름입니다.__
 
 NW.js 처럼 Electron은 JavaScript와 HTML 그리고 Node 통합 환경을 제공함으로써 웹
-페이지에서 저 수준 시스템에 접근할 수 있도록 하여 웹 기반 데스크탑 어플리케이션을
+페이지에서 저 수준 시스템에 접근할 수 있도록 하여 웹 기반 데스크탑 애플리케이션을
 작성할 수 있도록 하는 프레임워크 입니다.
 
 하지만 Electron과 NW.js는 근본적인 개발흐름의 차이도 있습니다:
 
-__1. 어플리케이션의 엔트리 포인트__
+__1. 애플리케이션의 엔트리 포인트__
 
-NW.js에선 어플리케이션의 엔트리 포인트로 웹 페이지를 사용합니다. `package.json`내의
-main 필드에 메인 웹 페이지(index.html) URL을 지정하면 어플리케이션의 메인 윈도우로
+NW.js에선 애플리케이션의 엔트리 포인트로 웹 페이지를 사용합니다. `package.json`내의
+main 필드에 메인 웹 페이지(index.html) URL을 지정하면 애플리케이션의 메인 윈도우로
 열리게 됩니다.
 
 Electron에선 JavaScript를 엔트리 포인트로 사용합니다. URL을 직접 제공하는 대신 API를
 사용하여 직접 브라우저 창과 HTML 파일을 로드할 수 있습니다. 또한 윈도우의 종료시기를
-결정하는 이벤트를 리스닝해야합니다.
+결정하는 이벤트를 리스닝해야 합니다.
 
 Electron은 Node.js 런타임과 비슷하게 작동합니다. Electron의 API는 저수준이기에
 브라우저 테스팅을 위해 [PhantomJS](http://phantomjs.org/)를 사용할 수도 있습니다.
@@ -44,4 +44,6 @@ __4. 다중 컨텍스트__
 Node의 [다중 컨텍스트](http://strongloop.com/strongblog/whats-new-node-js-v0-12-multiple-context-execution/)를
 사용하기 때문에 Electron은 웹 페이지의 새로운 JavaScript 컨텍스트를 생성하지 않습니다.
 
-[node-bindings]: https://github.com/atom/electron/tree/master/atom/common
+참고: NW.js는 0.13 버전부터 선택적으로 다중 컨텍스트를 지원합니다.
+
+[node-bindings]: https://github.com/electron/electron/tree/master/atom/common

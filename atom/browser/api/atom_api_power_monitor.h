@@ -19,12 +19,12 @@ class PowerMonitor : public mate::TrackableObject<PowerMonitor>,
  public:
   static v8::Local<v8::Value> Create(v8::Isolate* isolate);
 
- protected:
-  PowerMonitor();
-  ~PowerMonitor() override;
+  static void BuildPrototype(v8::Isolate* isolate,
+                             v8::Local<v8::ObjectTemplate> prototype);
 
-  // mate::TrackableObject:
-  void Destroy() override;
+ protected:
+  explicit PowerMonitor(v8::Isolate* isolate);
+  ~PowerMonitor() override;
 
   // base::PowerObserver implementations:
   void OnPowerStateChange(bool on_battery_power) override;

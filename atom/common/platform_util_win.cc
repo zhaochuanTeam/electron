@@ -24,8 +24,8 @@
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_comptr.h"
 #include "base/win/windows_version.h"
-#include "url/gurl.h"
 #include "ui/base/win/shell.h"
+#include "url/gurl.h"
 
 namespace {
 
@@ -238,7 +238,7 @@ void ShowItemInFolder(const base::FilePath& full_path) {
             (GetProcAddress(shell32_base, "SHOpenFolderAndSelectItems"));
   }
   if (!open_folder_and_select_itemsPtr) {
-    ShellExecute(NULL, L"open", dir.value().c_str(), NULL, NULL, SW_SHOW);
+    ui::win::OpenFolderViaShell(dir);
     return;
   }
 
@@ -251,15 +251,19 @@ void ShowItemInFolder(const base::FilePath& full_path) {
   hr = desktop->ParseDisplayName(NULL, NULL,
                                  const_cast<wchar_t *>(dir.value().c_str()),
                                  NULL, &dir_item, NULL);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
+    ui::win::OpenFolderViaShell(dir);
     return;
+  }
 
   base::win::ScopedCoMem<ITEMIDLIST> file_item;
   hr = desktop->ParseDisplayName(NULL, NULL,
       const_cast<wchar_t *>(full_path.value().c_str()),
       NULL, &file_item, NULL);
-  if (FAILED(hr))
+  if (FAILED(hr)) {
+    ui::win::OpenFolderViaShell(dir);
     return;
+  }
 
   const ITEMIDLIST* highlight[] = { file_item };
 
@@ -271,7 +275,7 @@ void ShowItemInFolder(const base::FilePath& full_path) {
     // found" even though the file is there.  In these cases, ShellExecute()
     // seems to work as a fallback (although it won't select the file).
     if (hr == ERROR_FILE_NOT_FOUND) {
-      ShellExecute(NULL, L"open", dir.value().c_str(), NULL, NULL, SW_SHOW);
+      ui::win::OpenFolderViaShell(dir);
     } else {
       LPTSTR message = NULL;
       DWORD message_length = FormatMessage(
@@ -284,6 +288,8 @@ void ShowItemInFolder(const base::FilePath& full_path) {
                    << " " << reinterpret_cast<LPTSTR>(&message);
       if (message)
         LocalFree(message);
+
+      ui::win::OpenFolderViaShell(dir);
     }
   }
 }
@@ -295,30 +301,13 @@ void OpenItem(const base::FilePath& full_path) {
     ui::win::OpenFileViaShell(full_path);
 }
 
-bool OpenExternal(const GURL& url) {
+bool OpenExternal(const base::string16& url, bool activate) {
   // Quote the input scheme to be sure that the command does not have
   // parameters unexpected by the external program. This url should already
   // have been escaped.
-  std::string escaped_url = url.spec();
-  escaped_url.insert(0, "\"");
-  escaped_url += "\"";
+  base::string16 escaped_url = L"\"" + url + L"\"";
 
-  // According to Mozilla in uriloader/exthandler/win/nsOSHelperAppService.cpp:
-  // "Some versions of windows (Win2k before SP3, Win XP before SP1) crash in
-  // ShellExecute on long URLs (bug 161357 on bugzilla.mozilla.org). IE 5 and 6
-  // support URLS of 2083 chars in length, 2K is safe."
-  const size_t kMaxURLLength = 2048;
-  if (escaped_url.length() > kMaxURLLength) {
-    NOTREACHED();
-    return false;
-  }
-
-  if (base::win::GetVersion() < base::win::VERSION_WIN7) {
-    if (!ValidateShellCommandForScheme(url.scheme()))
-      return false;
-  }
-
-  if (reinterpret_cast<ULONG_PTR>(ShellExecuteA(NULL, "open",
+  if (reinterpret_cast<ULONG_PTR>(ShellExecuteW(NULL, L"open",
                                                 escaped_url.c_str(), NULL, NULL,
                                                 SW_SHOWNORMAL)) <= 32) {
     // We fail to execute the call. We could display a message to the user.
@@ -340,13 +329,26 @@ bool MoveItemToTrash(const base::FilePath& path) {
 
   // Elevation prompt enabled for UAC protected files.  This overrides the
   // SILENT, NO_UI and NOERRORUI flags.
-  if (FAILED(pfo->SetOperationFlags(FOF_NO_UI |
-                                    FOF_ALLOWUNDO |
-                                    FOF_NOERRORUI |
-                                    FOF_SILENT |
-                                    FOFX_SHOWELEVATIONPROMPT |
-                                    FOFX_RECYCLEONDELETE)))
-    return false;
+
+  if (base::win::GetVersion() >= base::win::VERSION_WIN8) {
+    // Windows 8 introduces the flag RECYCLEONDELETE and deprecates the
+    // ALLOWUNDO in favor of ADDUNDORECORD.
+    if (FAILED(pfo->SetOperationFlags(FOF_NO_UI |
+                                      FOFX_ADDUNDORECORD |
+                                      FOF_NOERRORUI |
+                                      FOF_SILENT |
+                                      FOFX_SHOWELEVATIONPROMPT |
+                                      FOFX_RECYCLEONDELETE)))
+      return false;
+  } else {
+    // For Windows 7 and Vista, RecycleOnDelete is the default behavior.
+    if (FAILED(pfo->SetOperationFlags(FOF_NO_UI |
+                                      FOF_ALLOWUNDO |
+                                      FOF_NOERRORUI |
+                                      FOF_SILENT |
+                                      FOFX_SHOWELEVATIONPROMPT)))
+      return false;
+  }
 
   // Create an IShellItem from the supplied source path.
   base::win::ScopedComPtr<IShellItem> delete_item;
